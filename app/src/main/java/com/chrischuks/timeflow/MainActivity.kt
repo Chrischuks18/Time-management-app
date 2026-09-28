@@ -39,6 +39,7 @@ class MainVm(val db:AppDatabase):ViewModel(){
  val goals=db.dao().goals().stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),emptyList())
  val blocks=db.dao().blocks().stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),emptyList())
  val reviews=db.dao().reviews().stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),emptyList())
+ val subtasks=db.dao().subtasks().stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),emptyList())
  val dbRef get() = db
  fun add(title:String,note:String,priority:Int,mins:Int,due:Long?,important:Boolean=false,urgent:Boolean=false,recurrence:String="NONE",after:(Long)->Unit)=viewModelScope.launch{after(db.dao().addTask(Task(title=title,note=note,priority=priority,estimatedMinutes=mins,dueAt=due,important=important,urgent=urgent,recurrence=recurrence)))}
  fun toggle(t:Task)=viewModelScope.launch{
@@ -47,7 +48,14 @@ class MainVm(val db:AppDatabase):ViewModel(){
  }
  fun del(t:Task)=viewModelScope.launch{db.dao().deleteTask(t)}
  fun habit(n:String)=viewModelScope.launch{db.dao().addHabit(Habit(name=n))}
- fun habitToggle(h:Habit)=viewModelScope.launch{db.dao().updateHabit(h.copy(completedToday=!h.completedToday,streak=(h.streak+(if(!h.completedToday)1 else -1)).coerceAtLeast(0)))}
+ fun habitToggle(h:Habit)=viewModelScope.launch{
+  val day=System.currentTimeMillis()/86400000L
+  if(h.lastCompletedDay==day) db.dao().updateHabit(h.copy(completedToday=false,streak=(h.streak-1).coerceAtLeast(0),lastCompletedDay=null))
+  else {val consecutive=h.lastCompletedDay==day-1;db.dao().updateHabit(h.copy(completedToday=true,streak=if(consecutive)h.streak+1 else 1,lastCompletedDay=day))}
+ }
+ fun addSubtask(taskId:Long,title:String)=viewModelScope.launch{if(title.isNotBlank())db.dao().addSubtask(Subtask(taskId=taskId,title=title))}
+ fun toggleSubtask(s:Subtask)=viewModelScope.launch{db.dao().updateSubtask(s.copy(completed=!s.completed))}
+ fun deleteSubtask(s:Subtask)=viewModelScope.launch{db.dao().deleteSubtask(s)}
  fun logFocus(title:String,m:Int)=viewModelScope.launch{db.dao().addSession(FocusSession(taskTitle=title,minutes=m))}
 }
 class VmFactory(private val db:AppDatabase):ViewModelProvider.Factory{override fun <T:ViewModel> create(c:Class<T>):T=MainVm(db) as T}
