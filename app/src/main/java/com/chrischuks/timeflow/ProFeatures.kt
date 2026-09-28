@@ -1,0 +1,34 @@
+package com.chrischuks.timeflow
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.*
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.chrischuks.timeflow.data.*
+import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.*
+
+@Composable fun ProHub(vm:MainVm){
+ val projects by vm.projects.collectAsStateWithLifecycle();val goals by vm.goals.collectAsStateWithLifecycle();val blocks by vm.blocks.collectAsStateWithLifecycle()
+ var page by remember{mutableIntStateOf(0)}
+ Column{Header("TimeFlow Pro","Plan outcomes, not just activity.")
+  ScrollableTabRow(page){listOf("Planner","Matrix","Projects","Goals","Review").forEachIndexed{i,s->Tab(page==i,{page=i},text={Text(s)})}}
+  when(page){0->Planner(vm,blocks);1->Matrix(vm);2->Projects(vm,projects);3->Goals(vm,goals);else->Review(vm)}
+ }}
+@Composable fun Planner(vm:MainVm,blocks:List<TimeBlock>){
+ var title by remember{mutableStateOf("")};val scope=rememberCoroutineScope()
+ LazyColumn{item{Section("Time blocking","Reserve your attention before the day spends it for you.");Row(Modifier.padding(16.dp)){OutlinedTextField(title,{title=it},Modifier.weight(1f),label={Text("Block title")});IconButton({if(title.isNotBlank()){val s=System.currentTimeMillis()+3600000;scope.launch{vm.db.dao().addBlock(TimeBlock(title=title,startAt=s,endAt=s+3600000));title=""}}}){Icon(Icons.Default.AddCircle,null)}}};items(blocks){b->ListItem(headlineContent={Text(b.title)},supportingContent={Text("${fmt(b.startAt)} – ${SimpleDateFormat("h:mm a",Locale.getDefault()).format(Date(b.endAt))}")},leadingContent={Icon(Icons.Default.CalendarMonth,null)})}}
+}
+@Composable fun Matrix(vm:MainVm){val ts by vm.tasks.collectAsStateWithLifecycle();LazyColumn{item{Section("Eisenhower Matrix","Separate urgency from importance.")};items(listOf("Do now" to ts.filter{it.urgent&&it.important},"Schedule" to ts.filter{!it.urgent&&it.important},"Delegate / simplify" to ts.filter{it.urgent&&!it.important},"Eliminate" to ts.filter{!it.urgent&&!it.important})){(name,list)->item{Text(name,Modifier.padding(16.dp,12.dp,16.dp,4.dp),fontWeight=FontWeight.Bold)};items(list){TaskRow(it,{vm.toggle(it)},{vm.del(it)})}}}}
+@Composable fun Projects(vm:MainVm,ps:List<Project>){var n by remember{mutableStateOf("")};val scope=rememberCoroutineScope();LazyColumn{item{Section("Projects","Group tasks around meaningful outcomes.");QuickAdd(n,{n=it},"New project"){if(n.isNotBlank()){scope.launch{vm.db.dao().addProject(Project(name=n))};n=""}}};items(ps){ListItem(headlineContent={Text(it.name)},supportingContent={Text(it.description.ifBlank{"Active project"})},leadingContent={Icon(Icons.Default.Folder,null)})}}}
+@Composable fun Goals(vm:MainVm,gs:List<Goal>){var n by remember{mutableStateOf("")};val scope=rememberCoroutineScope();LazyColumn{item{Section("Goals","Turn long-term intentions into measurable progress.");QuickAdd(n,{n=it},"New goal"){if(n.isNotBlank()){scope.launch{vm.db.dao().addGoal(Goal(title=n))};n=""}}};items(gs){g->ListItem(headlineContent={Text(g.title)},supportingContent={LinearProgressIndicator(progress={g.progress/100f},Modifier.fillMaxWidth())},leadingContent={Icon(Icons.Default.Flag,null)},trailingContent={Text("${g.progress}%")})}}}
+@Composable fun Review(vm:MainVm){var wins by remember{mutableStateOf("")};var lessons by remember{mutableStateOf("")};var next by remember{mutableStateOf("")};val scope=rememberCoroutineScope();Column(Modifier.padding(16.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){Text("Weekly Review",style=MaterialTheme.typography.titleLarge,fontWeight=FontWeight.Bold);Text("Close the loop: celebrate, learn, then choose the next priorities.");OutlinedTextField(wins,{wins=it},Modifier.fillMaxWidth(),label={Text("Wins this week")});OutlinedTextField(lessons,{lessons=it},Modifier.fillMaxWidth(),label={Text("What did I learn?")});OutlinedTextField(next,{next=it},Modifier.fillMaxWidth(),label={Text("Top priorities next week")});Button({scope.launch{vm.db.dao().addReview(WeeklyReview(wins=wins,lessons=lessons,nextWeek=next))};wins="";lessons="";next=""},Modifier.fillMaxWidth()){Text("Save weekly review")}}}
+@Composable fun Section(t:String,s:String){Column(Modifier.padding(20.dp,18.dp,20.dp,4.dp)){Text(t,style=MaterialTheme.typography.titleLarge,fontWeight=FontWeight.Bold);Text(s,color=MaterialTheme.colorScheme.onSurfaceVariant)}}
+@Composable fun QuickAdd(v:String,on:(String)->Unit,label:String,go:()->Unit){Row(Modifier.padding(16.dp)){OutlinedTextField(v,on,Modifier.weight(1f),label={Text(label)});IconButton(go){Icon(Icons.Default.AddCircle,null)}}}
+fun fmt(v:Long)=SimpleDateFormat("EEE d MMM, h:mm a",Locale.getDefault()).format(Date(v))
