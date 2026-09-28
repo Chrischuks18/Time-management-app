@@ -7,9 +7,11 @@ plugins {
 android {
     namespace = "com.chrischuks.timeflow"
     compileSdk = 35
-    defaultConfig { applicationId = "com.chrischuks.timeflow"; minSdk = 26; targetSdk = 35; versionCode = 1; versionName = "1.0" }
+    defaultConfig { applicationId = "com.chrischuks.timeflow"; minSdk = 26; targetSdk = 31; versionCode = 2; versionName = "1.0.1" }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
     buildFeatures { compose = true; buildConfig = true }
+    buildTypes { debug { isMinifyEnabled = false } }
+    splits { abi { isEnable = false } }
     packaging { resources.excludes += "/META-INF/{AL2.0,LGPL2.1}" }
 }
 kotlin { jvmToolchain(17) }
