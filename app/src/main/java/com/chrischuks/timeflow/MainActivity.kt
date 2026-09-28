@@ -40,7 +40,7 @@ class MainVm(val db:AppDatabase):ViewModel(){
  val blocks=db.dao().blocks().stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),emptyList())
  val reviews=db.dao().reviews().stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),emptyList())
  val dbRef get() = db
- fun add(title:String,note:String,priority:Int,mins:Int,due:Long?,after:(Long)->Unit)=viewModelScope.launch{after(db.dao().addTask(Task(title=title,note=note,priority=priority,estimatedMinutes=mins,dueAt=due)))}
+ fun add(title:String,note:String,priority:Int,mins:Int,due:Long?,important:Boolean=false,urgent:Boolean=false,after:(Long)->Unit)=viewModelScope.launch{after(db.dao().addTask(Task(title=title,note=note,priority=priority,estimatedMinutes=mins,dueAt=due,important=important,urgent=urgent)))}
  fun toggle(t:Task)=viewModelScope.launch{db.dao().updateTask(t.copy(completed=!t.completed))}
  fun del(t:Task)=viewModelScope.launch{db.dao().deleteTask(t)}
  fun habit(n:String)=viewModelScope.launch{db.dao().addHabit(Habit(name=n))}
@@ -52,7 +52,7 @@ class VmFactory(private val db:AppDatabase):ViewModelProvider.Factory{override f
 @Composable fun App(){
  val a=androidx.compose.ui.platform.LocalContext.current.applicationContext as TimeFlowApp
  val vm:MainVm=viewModel(factory=VmFactory(a.db));var tab by remember{mutableIntStateOf(0)}
- Scaffold(bottomBar={NavigationBar{listOf("Today" to Icons.Default.Home,"Tasks" to Icons.Default.CheckCircle,"Focus" to Icons.Default.Timer,"Habits" to Icons.Default.AutoAwesome,"Pro" to Icons.Default.WorkspacePremium).forEachIndexed{i,x->NavigationBarItem(selected=tab==i,onClick={tab=i},icon={Icon(x.second,null)},label={Text(x.first)})}}}){p->Box(Modifier.padding(p)){when(tab){0->Today(vm);1->Tasks(vm);2->Focus(vm);3->Habits(vm);else->ProHub(vm)}}}
+ Scaffold(bottomBar={NavigationBar{listOf("Today" to Icons.Default.Home,"Tasks" to Icons.Default.CheckCircle,"Focus" to Icons.Default.Timer,"Planner" to Icons.Default.CalendarMonth,"More" to Icons.Default.GridView).forEachIndexed{i,x->NavigationBarItem(selected=tab==i,onClick={tab=i},icon={Icon(x.second,null)},label={Text(x.first)})}}}){p->Box(Modifier.padding(p)){when(tab){0->Today(vm);1->Tasks(vm);2->Focus(vm);3->PlannerScreen(vm);else->MoreHub(vm)}}}
 }
 @Composable fun Header(title:String,sub:String){Column(Modifier.padding(20.dp,20.dp,20.dp,8.dp)){Text(title,style=MaterialTheme.typography.headlineMedium,fontWeight=FontWeight.Bold);Text(sub,color=MaterialTheme.colorScheme.onSurfaceVariant)}}
 @Composable fun Today(vm:MainVm){
@@ -67,14 +67,14 @@ class VmFactory(private val db:AppDatabase):ViewModelProvider.Factory{override f
 @Composable fun Tasks(vm:MainVm){
  val ts by vm.tasks.collectAsStateWithLifecycle();var show by remember{mutableStateOf(false)};val context=androidx.compose.ui.platform.LocalContext.current
  Scaffold(floatingActionButton={FloatingActionButton(onClick={show=true}){Icon(Icons.Default.Add,null)}}){pad->LazyColumn(Modifier.padding(pad)){item{Header("Tasks","Capture, prioritize and finish.")};items(ts,key={it.id}){TaskRow(it,{vm.toggle(it)},{vm.del(it)})}}}
- if(show)AddTaskDialog({show=false}){t,n,p,m,d->vm.add(t,n,p,m,d){id->if(d!=null)ReminderScheduler.schedule(context,id,t,d)};show=false}
+ if(show)AddTaskDialog({show=false}){t,n,p,m,d,important,urgent->vm.add(t,n,p,m,d,important,urgent){id->if(d!=null)ReminderScheduler.schedule(context,id,t,d)};show=false}
 }
 @Composable fun TaskRow(t:Task,toggle:()->Unit,del:()->Unit){
  Card(Modifier.padding(horizontal=16.dp,vertical=5.dp).fillMaxWidth()){Row(Modifier.padding(12.dp),verticalAlignment=Alignment.CenterVertically){Checkbox(t.completed,{toggle()});Column(Modifier.weight(1f)){Text(t.title,fontWeight=FontWeight.SemiBold);Text("${t.category} • ${t.estimatedMinutes} min • ${when(t.priority){3->"High";1->"Low";else->"Medium"}}",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant);t.dueAt?.let{Text(SimpleDateFormat("EEE, d MMM • h:mm a",Locale.getDefault()).format(Date(it)),style=MaterialTheme.typography.bodySmall)}};IconButton(del){Icon(Icons.Default.DeleteOutline,null)}}}
 }
-@Composable fun AddTaskDialog(close:()->Unit,save:(String,String,Int,Int,Long?)->Unit){
- var title by remember{mutableStateOf("")};var note by remember{mutableStateOf("")};var pri by remember{mutableIntStateOf(2)};var mins by remember{mutableStateOf("30")};var remind by remember{mutableStateOf(false)}
- AlertDialog(onDismissRequest=close,title={Text("Plan a task")},text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)){OutlinedTextField(title,{title=it},label={Text("Task")});OutlinedTextField(note,{note=it},label={Text("Notes")});OutlinedTextField(mins,{mins=it.filter(Char::isDigit)},label={Text("Minutes")});Row{listOf(1 to "Low",2 to "Medium",3 to "High").forEach{(v,l)->FilterChip(pri==v,{pri=v},{Text(l)});Spacer(Modifier.width(4.dp))}};Row(verticalAlignment=Alignment.CenterVertically){Switch(remind,{remind=it});Text(" Remind me in 1 hour")}}},confirmButton={Button(onClick={if(title.isNotBlank())save(title,note,pri,mins.toIntOrNull()?:30,if(remind)System.currentTimeMillis()+3600000 else null)}){Text("Add")}},dismissButton={TextButton(close){Text("Cancel")}})
+@Composable fun AddTaskDialog(close:()->Unit,save:(String,String,Int,Int,Long?,Boolean,Boolean)->Unit){
+ var title by remember{mutableStateOf("")};var note by remember{mutableStateOf("")};var pri by remember{mutableIntStateOf(2)};var mins by remember{mutableStateOf("30")};var remind by remember{mutableStateOf(false)};var important by remember{mutableStateOf(false)};var urgent by remember{mutableStateOf(false)}
+ AlertDialog(onDismissRequest=close,title={Text("Plan a task")},text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)){OutlinedTextField(title,{title=it},label={Text("Task")});OutlinedTextField(note,{note=it},label={Text("Notes")});OutlinedTextField(mins,{mins=it.filter(Char::isDigit)},label={Text("Estimated minutes")});Row{listOf(1 to "Low",2 to "Medium",3 to "High").forEach{(v,l)->FilterChip(pri==v,{pri=v},{Text(l)});Spacer(Modifier.width(4.dp))}};Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){FilterChip(important,{important=!important},{Text("Important")},leadingIcon={if(important){Icon(Icons.Default.Star,null)}});FilterChip(urgent,{urgent=!urgent},{Text("Urgent")},leadingIcon={if(urgent){Icon(Icons.Default.Bolt,null)}})};Row(verticalAlignment=Alignment.CenterVertically){Switch(remind,{remind=it});Text(" Remind me in 1 hour")}}},confirmButton={Button(onClick={if(title.isNotBlank())save(title,note,pri,mins.toIntOrNull()?:30,if(remind)System.currentTimeMillis()+3600000 else null,important,urgent)}){Text("Add task")}},dismissButton={TextButton(close){Text("Cancel")}})
 }
 @Composable fun Focus(vm:MainVm){
  var running by remember{mutableStateOf(false)};var left by remember{mutableIntStateOf(25*60)};var title by remember{mutableStateOf("Deep work")}
