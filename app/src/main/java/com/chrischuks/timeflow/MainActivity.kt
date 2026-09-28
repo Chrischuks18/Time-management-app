@@ -18,6 +18,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.chrischuks.timeflow.data.*
 import com.chrischuks.timeflow.reminder.ReminderScheduler
+import com.chrischuks.timeflow.motivation.QuoteLibrary
+import com.chrischuks.timeflow.motivation.DailyMotivationWorker
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import java.text.SimpleDateFormat
@@ -25,7 +27,7 @@ import java.util.*
 
 class MainActivity:ComponentActivity(){
  private val permission=registerForActivityResult(ActivityResultContracts.RequestPermission()){}
- override fun onCreate(b:Bundle?){super.onCreate(b);if(Build.VERSION.SDK_INT>=33)permission.launch(Manifest.permission.POST_NOTIFICATIONS);setContent{TimeFlowTheme{App()}}}
+ override fun onCreate(b:Bundle?){super.onCreate(b);if(Build.VERSION.SDK_INT>=33)permission.launch(Manifest.permission.POST_NOTIFICATIONS);DailyMotivationWorker.schedule(this);setContent{TimeFlowTheme{App()}}}
 }
 class MainVm(val db:AppDatabase):ViewModel(){
  val tasks=db.dao().tasks().stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),emptyList())
@@ -54,7 +56,7 @@ class VmFactory(private val db:AppDatabase):ViewModelProvider.Factory{override f
 @Composable fun Today(vm:MainVm){
  val ts by vm.tasks.collectAsStateWithLifecycle();val done=ts.count{it.completed}
  LazyColumn(contentPadding=PaddingValues(bottom=24.dp)){
-  item{Header("Own your day","Focus on what matters, not what shouts loudest.");Row(Modifier.padding(horizontal=20.dp),horizontalArrangement=Arrangement.spacedBy(12.dp)){Metric("${ts.size-done}","Open",Modifier.weight(1f));Metric("$done","Done",Modifier.weight(1f));Metric("${ts.filter{!it.completed}.sumOf{it.estimatedMinutes}}m","Planned",Modifier.weight(1f))};Spacer(Modifier.height(18.dp));Text("Next actions",Modifier.padding(horizontal=20.dp),fontWeight=FontWeight.Bold)}
+  item{Header("Own your day","Focus on what matters, not what shouts loudest.");DailyQuoteCard();Row(Modifier.padding(horizontal=20.dp),horizontalArrangement=Arrangement.spacedBy(12.dp)){Metric("${ts.size-done}","Open",Modifier.weight(1f));Metric("$done","Done",Modifier.weight(1f));Metric("${ts.filter{!it.completed}.sumOf{it.estimatedMinutes}}m","Planned",Modifier.weight(1f))};Spacer(Modifier.height(18.dp));Text("Next actions",Modifier.padding(horizontal=20.dp),fontWeight=FontWeight.Bold)}
   items(ts.filter{!it.completed}.take(5)){TaskRow(it,{vm.toggle(it)},{vm.del(it)})}
   if(ts.none{!it.completed})item{Empty("Your day is clear","Add a task and give your time a purpose.")}
  }
@@ -86,3 +88,14 @@ class VmFactory(private val db:AppDatabase):ViewModelProvider.Factory{override f
  Column{Header("Insights","Use evidence to improve your week.");Card(Modifier.padding(16.dp).fillMaxWidth()){Column(Modifier.padding(18.dp)){Text("Completion rate",fontWeight=FontWeight.Bold);Text("$pct%",style=MaterialTheme.typography.displaySmall,fontWeight=FontWeight.Bold);LinearProgressIndicator(progress={pct/100f},modifier=Modifier.fillMaxWidth());Spacer(Modifier.height(18.dp));Text("Focus time: ${ss.sumOf{it.minutes}} min");Text("Focus sessions: ${ss.size}");Text("Tasks completed: $done of $total")}};Text("Tip: plan fewer high-impact tasks, then protect time for them.",Modifier.padding(20.dp),color=MaterialTheme.colorScheme.onSurfaceVariant)}
 }
 @Composable fun Empty(t:String,s:String){Column(Modifier.fillMaxWidth().padding(40.dp),horizontalAlignment=Alignment.CenterHorizontally){Icon(Icons.Default.EventAvailable,null,Modifier.size(48.dp));Text(t,fontWeight=FontWeight.Bold);Text(s)}}
+
+@Composable fun DailyQuoteCard(){
+ val q=remember{QuoteLibrary.today()}
+ Card(Modifier.padding(horizontal=20.dp,vertical=8.dp).fillMaxWidth(),colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.primaryContainer)){
+  Column(Modifier.padding(18.dp)){
+   Row(verticalAlignment=Alignment.CenterVertically){Icon(Icons.Default.FormatQuote,null);Spacer(Modifier.width(8.dp));Text("DAILY MOTIVATION",style=MaterialTheme.typography.labelMedium,fontWeight=FontWeight.Bold)}
+   Spacer(Modifier.height(10.dp));Text(q.text,style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.SemiBold)
+   Spacer(Modifier.height(8.dp));Text("A new thought every day",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha=.7f))
+  }
+ }
+}
