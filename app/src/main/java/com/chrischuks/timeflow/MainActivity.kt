@@ -48,7 +48,11 @@ class MainVm(val db:AppDatabase):ViewModel(){
  fun logFocus(title:String,m:Int)=viewModelScope.launch{db.dao().addSession(FocusSession(taskTitle=title,minutes=m))}
 }
 class VmFactory(private val db:AppDatabase):ViewModelProvider.Factory{override fun <T:ViewModel> create(c:Class<T>):T=MainVm(db) as T}
-@Composable fun TimeFlowTheme(content:@Composable () -> Unit){MaterialTheme(colorScheme=lightColorScheme(primary=androidx.compose.ui.graphics.Color(0xFF315CFF),secondary=androidx.compose.ui.graphics.Color(0xFF6D4AFF),surface=androidx.compose.ui.graphics.Color(0xFFF8F9FE)),content=content)}
+@Composable fun TimeFlowTheme(content:@Composable () -> Unit){
+ val dark=androidx.compose.foundation.isSystemInDarkTheme()
+ val scheme=if(dark) darkColorScheme(primary=androidx.compose.ui.graphics.Color(0xFF9CB1FF),secondary=androidx.compose.ui.graphics.Color(0xFFC4B5FD),surface=androidx.compose.ui.graphics.Color(0xFF111318),background=androidx.compose.ui.graphics.Color(0xFF0C0E12)) else lightColorScheme(primary=androidx.compose.ui.graphics.Color(0xFF2949C7),secondary=androidx.compose.ui.graphics.Color(0xFF6750A4),surface=androidx.compose.ui.graphics.Color(0xFFFFFBFF),background=androidx.compose.ui.graphics.Color(0xFFF7F7FC),primaryContainer=androidx.compose.ui.graphics.Color(0xFFDCE2FF),secondaryContainer=androidx.compose.ui.graphics.Color(0xFFE9DDFF))
+ MaterialTheme(colorScheme=scheme,content=content)
+}
 @Composable fun App(){
  val a=androidx.compose.ui.platform.LocalContext.current.applicationContext as TimeFlowApp
  val vm:MainVm=viewModel(factory=VmFactory(a.db));var tab by remember{mutableIntStateOf(0)}
