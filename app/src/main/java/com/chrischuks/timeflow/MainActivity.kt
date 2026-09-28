@@ -62,7 +62,6 @@ class VmFactory(private val db:AppDatabase):ViewModelProvider.Factory{override f
   items(ts.filter{!it.completed}.take(5)){TaskRow(it,{vm.toggle(it)},{vm.del(it)})}
   if(ts.none{!it.completed})item{Empty("Your day is clear","Add a task and give your time a purpose.")}
  }
- if(settings) AlertDialog(onDismissRequest={settings=false},title={Text("Motivation categories")},text={LazyColumn{items(QuoteCategory.entries){cat->Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Checkbox(cat in selected,{checked->selected=if(checked)selected+cat else selected-cat});Text(cat.label)}}}},confirmButton={Button({MotivationPreferences.set(context,selected);selected=MotivationPreferences.selected(context);settings=false}){Text("Save")}},dismissButton={TextButton({selected=QuoteCategory.entries.toSet()}){Text("Select all")}})
 }
 @Composable fun Metric(v:String,l:String,m:Modifier){Card(m){Column(Modifier.padding(14.dp)){Text(v,fontWeight=FontWeight.Bold,style=MaterialTheme.typography.titleLarge);Text(l,style=MaterialTheme.typography.bodySmall)}}}
 @Composable fun Tasks(vm:MainVm){
@@ -104,4 +103,11 @@ class VmFactory(private val db:AppDatabase):ViewModelProvider.Factory{override f
    Spacer(Modifier.height(8.dp));Row(verticalAlignment=Alignment.CenterVertically){Text(q.category.label+" • A new thought every day",Modifier.weight(1f),style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha=.7f));IconButton({settings=true}){Icon(Icons.Default.Tune,"Motivation preferences")}}
   }
  }
+ if(settings) AlertDialog(
+  onDismissRequest={settings=false},
+  title={Text("Motivation categories")},
+  text={LazyColumn{items(QuoteCategory.entries){cat->Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Checkbox(cat in selected,{checked->selected=if(checked)selected+cat else selected-cat});Text(cat.label)}}}},
+  confirmButton={Button({MotivationPreferences.set(context,selected);selected=MotivationPreferences.selected(context);settings=false}){Text("Save")}},
+  dismissButton={TextButton({selected=QuoteCategory.entries.toSet()}){Text("Select all")}}
+ )
 }
