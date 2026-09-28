@@ -14,12 +14,12 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
-@Composable fun ProHub(vm:MainVm){
+@Composable fun MoreHub(vm:MainVm){
  val projects by vm.projects.collectAsStateWithLifecycle();val goals by vm.goals.collectAsStateWithLifecycle();val blocks by vm.blocks.collectAsStateWithLifecycle()
  var page by remember{mutableIntStateOf(0)}
- Column{Header("TimeFlow Pro","Plan outcomes, not just activity.")
-  ScrollableTabRow(page){listOf("Planner","Matrix","Projects","Goals","Review").forEachIndexed{i,s->Tab(page==i,{page=i},text={Text(s)})}}
-  when(page){0->Planner(vm,blocks);1->Matrix(vm);2->Projects(vm,projects);3->Goals(vm,goals);else->Review(vm)}
+ Column{Header("More","Everything you need to improve how you use your time.")
+  ScrollableTabRow(page){listOf("Habits","Matrix","Projects","Goals","Insights","Review").forEachIndexed{i,s->Tab(page==i,{page=i},text={Text(s)})}}
+  when(page){0->Habits(vm);1->Matrix(vm);2->Projects(vm,projects);3->Goals(vm,goals);4->Insights(vm);else->Review(vm)}
  }}
 @Composable fun Planner(vm:MainVm,blocks:List<TimeBlock>){
  var title by remember{mutableStateOf("")};val scope=rememberCoroutineScope()
@@ -42,3 +42,5 @@ import java.util.*
 @Composable fun Section(t:String,s:String){Column(Modifier.padding(20.dp,18.dp,20.dp,4.dp)){Text(t,style=MaterialTheme.typography.titleLarge,fontWeight=FontWeight.Bold);Text(s,color=MaterialTheme.colorScheme.onSurfaceVariant)}}
 @Composable fun QuickAdd(v:String,on:(String)->Unit,label:String,go:()->Unit){Row(Modifier.padding(16.dp)){OutlinedTextField(v,on,Modifier.weight(1f),label={Text(label)});IconButton(go){Icon(Icons.Default.AddCircle,null)}}}
 fun fmt(v:Long)=SimpleDateFormat("EEE d MMM, h:mm a",Locale.getDefault()).format(Date(v))
+
+@Composable fun PlannerScreen(vm:MainVm){val blocks by vm.blocks.collectAsStateWithLifecycle();Planner(vm,blocks)}
