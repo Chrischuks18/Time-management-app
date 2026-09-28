@@ -27,10 +27,15 @@ class MainActivity:ComponentActivity(){
  private val permission=registerForActivityResult(ActivityResultContracts.RequestPermission()){}
  override fun onCreate(b:Bundle?){super.onCreate(b);if(Build.VERSION.SDK_INT>=33)permission.launch(Manifest.permission.POST_NOTIFICATIONS);setContent{TimeFlowTheme{App()}}}
 }
-class MainVm(private val db:AppDatabase):ViewModel(){
+class MainVm(val db:AppDatabase):ViewModel(){
  val tasks=db.dao().tasks().stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),emptyList())
  val habits=db.dao().habits().stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),emptyList())
  val sessions=db.dao().sessions().stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),emptyList())
+ val projects=db.dao().projects().stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),emptyList())
+ val goals=db.dao().goals().stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),emptyList())
+ val blocks=db.dao().blocks().stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),emptyList())
+ val reviews=db.dao().reviews().stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),emptyList())
+ val dbRef get() = db
  fun add(title:String,note:String,priority:Int,mins:Int,due:Long?,after:(Long)->Unit)=viewModelScope.launch{after(db.dao().addTask(Task(title=title,note=note,priority=priority,estimatedMinutes=mins,dueAt=due)))}
  fun toggle(t:Task)=viewModelScope.launch{db.dao().updateTask(t.copy(completed=!t.completed))}
  fun del(t:Task)=viewModelScope.launch{db.dao().deleteTask(t)}
@@ -43,7 +48,7 @@ class VmFactory(private val db:AppDatabase):ViewModelProvider.Factory{override f
 @Composable fun App(){
  val a=androidx.compose.ui.platform.LocalContext.current.applicationContext as TimeFlowApp
  val vm:MainVm=viewModel(factory=VmFactory(a.db));var tab by remember{mutableIntStateOf(0)}
- Scaffold(bottomBar={NavigationBar{listOf("Today" to Icons.Default.Home,"Tasks" to Icons.Default.CheckCircle,"Focus" to Icons.Default.Timer,"Habits" to Icons.Default.AutoAwesome,"Insights" to Icons.Default.BarChart).forEachIndexed{i,x->NavigationBarItem(selected=tab==i,onClick={tab=i},icon={Icon(x.second,null)},label={Text(x.first)})}}}){p->Box(Modifier.padding(p)){when(tab){0->Today(vm);1->Tasks(vm);2->Focus(vm);3->Habits(vm);else->Insights(vm)}}}
+ Scaffold(bottomBar={NavigationBar{listOf("Today" to Icons.Default.Home,"Tasks" to Icons.Default.CheckCircle,"Focus" to Icons.Default.Timer,"Habits" to Icons.Default.AutoAwesome,"Pro" to Icons.Default.WorkspacePremium).forEachIndexed{i,x->NavigationBarItem(selected=tab==i,onClick={tab=i},icon={Icon(x.second,null)},label={Text(x.first)})}}}){p->Box(Modifier.padding(p)){when(tab){0->Today(vm);1->Tasks(vm);2->Focus(vm);3->Habits(vm);else->ProHub(vm)}}}
 }
 @Composable fun Header(title:String,sub:String){Column(Modifier.padding(20.dp,20.dp,20.dp,8.dp)){Text(title,style=MaterialTheme.typography.headlineMedium,fontWeight=FontWeight.Bold);Text(sub,color=MaterialTheme.colorScheme.onSurfaceVariant)}}
 @Composable fun Today(vm:MainVm){
