@@ -8,7 +8,7 @@ import java.util.concurrent.TimeUnit
 
 class DailyMotivationWorker(c:Context,p:WorkerParameters):Worker(c,p){
  override fun doWork():Result{
-  val q=QuoteLibrary.today()
+  val q=QuoteLibrary.today(applicationContext)
   val nm=applicationContext.getSystemService(NotificationManager::class.java)
   val channel="daily_motivation"
   nm.createNotificationChannel(NotificationChannel(channel,"Daily motivation",NotificationManager.IMPORTANCE_DEFAULT))
